@@ -75,6 +75,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             for unit in connectedUnits
                 link(key.location, unit.location)
                 println("$(key.location.name) and $(unit.location.name) linked successfully.")
+                println("")
             end
         end
     end
@@ -89,6 +90,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             if component.manufacturer == unit.location.name
                 distrib(component, unit.location)
                 println("$(component.name) added to $(unit.location.name)")
+                println("")
             end
         end
 
@@ -100,6 +102,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             inputNeeded = 0
             availableResources = 0
 
+            # Key here refers to the components and the value is the number of those components available.
             for key in keys(unit.inputResourcesAvailable)
                 inputNeeded = unit.inputsNeeded[key]
                 availableResources = unit.inputResourcesAvailable[key]
@@ -111,22 +114,25 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
             # Checking if there is enough resources to manufacture the output. If yes, the resources 
             # available will be reduced accordingly to produce a set amount of outputs.
-            
             if resourceChecker
-                unit.availableOutput += unit.productionSize
+                println("$(unit.location.name) output before is " * string(unit.availableOutput))
+                
 
                 for key in keys(unit.inputResourcesAvailable)
                     unit.inputResourcesAvailable[key] = availableResources - inputNeeded
                 end
 
                 hold(process, unit.productionTime * hoursInAWeek)
+                unit.availableOutput += unit.productionSize
+                println("$(unit.location.name) output after is " * string(unit.availableOutput))
                 println("$(unit.location.name) has just produced $(unit.productionSize) units.")
+                println("")
             else 
-                # hold statement has to be rectified. include details of shipping.
+                # If resources are insufficient for manufacturing, the manufacturer would have to wait as
+                # long as the longest time for any of its resources to be shipped to it. This is to ensure
+                # that it has got enough resources for the process. 
                 longestShippingTime = 0
 
-                # shippinglist = Array[shipping]
-                # shipping = inputsoutputs :: dict(MU, dict(MU, float64)), shippingsize :: int
                 for shipping in shippingList
                     receivingUnits = values(shipping.inputAndOutputs)
                     for receiver in receivingUnits
@@ -140,14 +146,54 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                 end
 
                 hold(process, longestShippingTime * hoursInAWeek)
-                print("For unit $(unit.location.name), operation is held for $(longestShippingTime) weeks. ")
-                println("$(unit.location.name) does not have enough resources for manufacturing.")
+                println("For unit $(unit.location.name), operation is held for $(longestShippingTime) weeks. \
+                $(unit.location.name) does not have enough resources for manufacturing.")
             end
         end
     end
 
-    # Shipping process method.
+    # Shipping process method. Continuous process just like creating outputs.
     function moveResources(process :: Process, shipping :: Shipping)
+
+        # NOTE: Shipping will involve many receiving manufacturing units.
+        # The sender here is the origin of the shipping for the resources. Receivers are the unit(s)
+        # which will need input resources from the sender.
+        sender = collect(keys(shipping.inputAndOutputs))[1]
+        receiversDict = shipping.inputAndOutputs[sender]
+        receivers = collect(keys(receiversDict))
+
+        # The shipping process will continue for as long as the simulation is going on provided that
+        # the manufacturer has enough outputs to be shipped ie availableOutput > shippingSize.
+        while true
+            for receiver in receivers
+                shippingTimeToReceiver = receiversDict[receiver]
+
+                # Finding the component associated with the manufacturing company.
+                index = findfirst(x -> x.manufacturer == sender.location.name, componentList)
+                manufacturedComponent = componentList[index]
+
+                if sender.availableOutput >= shipping.batchSize
+                    println("$(receiver.location.name) $(manufacturedComponent) before is " * string(receiver.inputResourcesAvailable[manufacturedComponent]))
+                    sender.availableOutput -= shipping.batchSize
+                    
+                    # Resources are first taken away, and after the processing time, will the available output increase.
+                    hold(process, shippingTimeToReceiver * hoursInAWeek)
+                    receiver.inputResourcesAvailable[manufacturedComponent] += shipping.batchSize
+
+                    println("$(sender.location.name) shipped $(shipping.batchSize) units of \
+                    $(manufacturedComponent) to $(receiver.location.name).")
+                    println("$(receiver.location.name) $(manufacturedComponent) after is " * string(receiver.inputResourcesAvailable[manufacturedComponent]))
+
+                else
+                    hold(process, sender.productionTime * hoursInAWeek)
+                    println("$(sender.location.name) does not have enough outputs yet to ship to $(receiver.location.name).")
+
+                end
+
+                println("")
+                
+            end
+        end
 
         #=
         resourcesNeeded = 0
@@ -214,6 +260,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
     =#
 
+    # To start all the processes for each manufacturing unit.
     model = Model()
     for unit in manufacturingUnits
         
@@ -221,17 +268,19 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         creatingProcess = Process("Create Output", process -> createOutput(process, unit))
         push!(model.env_processes, creatingProcess)
 
-        #=
+
         for shipping in shippingList
             # Only add the shipping process for the manufacturing units if the shipping originates from
             # the company.
-            if shipping.inputFrom.location.name == unit.location.name
-                movingProcess = Process("Moving Resource", process -> moveResources(process, shipping))
-                push!(model.env_processes, movingProcess)
+            if collect(keys(shipping.inputAndOutputs))[1] == unit
+                # The moveResources method above will deal with the shipping to various different companies
+                # as listed in the dictionary.
+                shippingProcess = Process("Shipping Resource", process -> moveResources(process, shipping))
+                push!(model.env_processes, shippingProcess)
             end
         end
         
-
+#=        
         processingProcess = Process("Processing Resource", process -> processResources(process, unit))
         push!(model.env_processes, processingProcess)
         # Pushing all the processes involved for each manufacturing unit.
@@ -241,8 +290,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
     simulation = Simulation(model)
     SysModels.start(simulation)
-    # 2000 hours is approximately 83.33 days.
-    SysModels.run(simulation, 2000hours)
+    # 5000 hours is approximately 208.33 days.
+    SysModels.run(simulation, 5000hours)
 
 end
 
@@ -252,15 +301,16 @@ componentList = [Component("Wood", "A"), Component("Metal", "B"), Component("Pla
 
 # We consider that every company start with no available output and no available resources to start
 # manufacturing their products.
-company1 = ManufacturingUnit(Location("A"), Dict(), Dict(), 0, 6.0, 350) # No input needed to create output
+company1 = ManufacturingUnit(Location("A"), Dict(componentList[1] => 50), Dict(componentList[1] => 500), 0, 6.0, 350)
 company2 = ManufacturingUnit(Location("B"), Dict(componentList[1] => 50), Dict(componentList[1] => 250), 0, 10, 1000)
 company3 = ManufacturingUnit(Location("C"), Dict(componentList[1] => 100, componentList[2] => 50), 
 Dict(componentList[1]=> 350, componentList[2] => 225), 0, 2.5, 500)
 
 # Shipping time is different for each company but shipping size is always the same for each 
 # manufacturer.
-shipping1 = Shipping(Dict(company1 => Dict(company2 => 5.5, company3 => 10.0)), 500)
+shipping1 = Shipping(Dict(company1 => Dict(company1 => 2.0, company2 => 5.5, company3 => 10.0)), 500)
 shipping2 = Shipping(Dict(company2 => Dict(company3 => 7.0)), 1200)
+#shipping3 = Shipping(Dict(company1 => Dict(company1 => 2.0)), 600)
 
 companyList = [company1, company2, company3]
 shippingList = [shipping1, shipping2]
