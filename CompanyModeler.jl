@@ -57,6 +57,12 @@ end
 function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingList :: Array{Shipping},
     componentList :: Array{Component})
     
+    # Linking both the input and output locations for every manufacturing unit
+    for unit in manufacturingUnits
+        link(unit.inputLocation, unit.outputLocation)
+        println("$(unit.inputLocation.name) and $(unit.outputLocation.name) linked successfully.")
+    end
+
     # Using all the data from the shippingList to link all the units, which have supply dependencies on
     # each other. Components can only be shipped between linked manufacturing units.
     for shipping in shippingList
@@ -65,22 +71,20 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         for key in keys(shipping.inputAndOutputs)
             connectedUnits = keys(shipping.inputAndOutputs[key])
             for unit in connectedUnits
-                ######## link(key.output, unit.input)
                 link(key.outputLocation, unit.inputLocation)
                 println("$(key.outputLocation.name) and $(unit.inputLocation.name) linked successfully.")
-                println("")
             end
         end
     end
 
-
-    # At first, we create resources needed by the manufacturing units in order to carry out business.
-    # Later on, if the supply diminishes, the supply chain would have to be held in order to produce
-    # more resources that the company can ship to another company.
-    function createInitialOutput(process :: Process, unit :: ManufacturingUnit)
+    # This process of manufacturing will run forever in the background as long as the simulation is running.
+    # If there is not enough materials to manufacture, the process would be stopped for as long as the 
+    # shipping of the resources will take.
+    function processResources(process :: Process, unit :: ManufacturingUnit)
         # At this starting stage, the manufacturing unit does not have any outputs yet. So they would
         # have to use the initial resources that they have to start producing outputs.
         for component in componentList
+            
             if component.inputLocation == unit.inputLocation
                 for _ in 1 : unit.productionSize
                     new_component = Component(component.name, component.inputLocation)
@@ -90,31 +94,33 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                 println("")
             end
         end
-    end
 
-    function processResources(process :: Process, unit :: ManufacturingUnit)
-        # This process of manufacturing will run forever in the background as long as the simulation is running.
-        # If there is not enough materials to manufacture, the process would be stopped for as long as the 
-        # shipping of the resources will take.
         while true
             # Needed here is a pair{Component, num_of_components_needed}
             inputsNeededPairs = unit.inputsNeeded |> collect
             success = false
             claimed = 0
             try
+                # Lengths of the inputs needed - has to be manually coded.
                 if length(inputsNeededPairs) == 1
-                    println("here1 -> ", unit.inputLocation.name)
                     success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])))
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) has been claimed by $(unit.inputLocation.name)")
+                    println("unit(1 input) -> ", unit.inputLocation.name)
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)\n")
 
                 elseif length(inputsNeededPairs) == 2
-                    println("here2 -> ", unit.inputLocation.name)
                     success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])) && 
-                                                    (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, inputsNeededPairs[2][2])))
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) has been claimed by $(unit.inputLocation.name)")
+                                                       (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, inputsNeededPairs[2][2])))
+                    println("unit(2 inputs) -> ", unit.inputLocation.name)
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) / 
+                            have been claimed from $(unit.inputLocation.name)\n")
 
                 elseif length(inputsNeededPairs) == 3
-                    continue ## need to update
+                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])) && 
+                                                       (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, inputsNeededPairs[2][2])) &&
+                                                       (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, inputsNeededPairs[3][2])))
+                    println("unit(2 inputs) -> ", unit.inputLocation.name)
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) / 
+                            and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name)\n")
                 end
             catch
                 #println("Error occured") ## error....
@@ -145,8 +151,6 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                 for output in outputs
                     add(process, unit.outputLocation, output)
                 end
-
-                #print("here okayyy \n\n")
             end
         end
     end
@@ -315,12 +319,6 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     # To start all the processes for each manufacturing unit.
     model = Model()
     for unit in manufacturingUnits
-         
-        # Creating and allocating the initial resources to each manufacturing units to allow them 
-        # to start their production process.
-        startingProcess = Process("Starting Process", process -> createInitialOutput(process, unit))
-        push!(model.env_processes, startingProcess)
-
         # The first parameter of the Process struct initialisation is the name of process.
         creatingProcess = Process("Create Output", process -> processResources(process, unit))
         push!(model.env_processes, creatingProcess)
@@ -349,10 +347,9 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
     end
 
-    simulation = Simulation(model)
-    SysModels.start(simulation)
-    # 5000 hours is approximately 208.33 days.
-    SysModels.run(simulation, 5000hours)
+    println("\n#################  SUPPLY CHAIN SIMULATION STARTS  ###################\n")
+
+    return model
 
 end
 
@@ -372,7 +369,7 @@ componentList = [Component("Wood", a_input), Component("Metal", b_input), Compon
 # We consider that every company start with no available output and no available resources to start
 # manufacturing their products.
 company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 150), 6.0, 350)
-company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[1] => 50), 10.0, 1000)
+company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[3] => 50), 10.0, 1000)
 company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 100, componentList[2] => 50), 2.5, 500)
 
 # Shipping time is different for each company but shipping size is always the same for each 
@@ -383,4 +380,9 @@ shipping2 = Shipping(Dict(company2 => Dict(company3 => 7.0)), 1200)
 
 companyList = [company1, company2, company3]
 shippingList = [shipping1, shipping2]
-createModel(companyList, shippingList, componentList)
+
+model = createModel(companyList, shippingList, componentList)
+simulation = Simulation(model)
+SysModels.start(simulation)
+# 5000 hours is approximately 208.33 days.
+SysModels.run(simulation, 2500hours)
