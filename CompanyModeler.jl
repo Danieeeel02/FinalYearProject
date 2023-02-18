@@ -101,41 +101,52 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             inputsNeededPairs = unit.inputsNeeded |> collect
             success = false
             claimed = 0
+            try
+                if length(inputsNeededPairs) == 1
+                    println("here1 -> ", unit.inputLocation.name)
+                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])))
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) has been claimed by $(unit.inputLocation.name)")
 
-            if length(inputsNeededPairs) == 1
-                println("here1")
-                success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])))
+                elseif length(inputsNeededPairs) == 2
+                    println("here2 -> ", unit.inputLocation.name)
+                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])) && 
+                                                    (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, inputsNeededPairs[2][2])))
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) has been claimed by $(unit.inputLocation.name)")
 
-            elseif length(inputsNeededPairs) == 2
-                println("here2")
-                success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, inputsNeededPairs[1][2])) && 
-                                                   (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, inputsNeededPairs[2][2])))
-
-            elseif length(inputsNeededPairs) == 3
-                continue ## need to update
-            else
-                println("error") ## error....
+                elseif length(inputsNeededPairs) == 3
+                    continue ## need to update
+                end
+            catch
+                #println("Error occured") ## error....
             end
+            
+            if (success)
+                #println("CLAIM STATUS: ", success)
+                production_inputs = flatten(claimed)
+                remove(process, production_inputs, unit.inputLocation)
 
-            println("STATUS: ", success)
+                ##Next, you want to create the output resources.
 
-            production_inputs = flatten(claimed)
-            remove(process, production_inputs, unit.inputLocation)
+                outputs = Component[]
 
-            ##Next, you want to create the output resources.
+                # Finding from the components list, which component is actually produced by the current
+                # manufacturing unit.
+                for component in componentList
+                    if component.inputLocation == unit.inputLocation
+                        for _ in 1 : unit.productionSize
+                            new_component = Component(component.name, component.inputLocation)
+                            push!(outputs, new_component)
+                        end
+                    end
+                end  
 
-            outputs = Component[]
+                hold(process, unit.productionTime * hoursInAWeek)
 
-            for i=1:unit.productionSize
-                push!(outputs, Component("output component", unit.inputLocation))
-            end
+                for output in outputs
+                    add(process, unit.outputLocation, output)
+                end
 
-            hold(process, unit.productionTime * hoursInAWeek)
-
-            print("here okayyy \n\n")
-
-            for output in outputs
-                add(process, unit.outputLocation, output)
+                #print("here okayyy \n\n")
             end
         end
     end
@@ -314,6 +325,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         creatingProcess = Process("Create Output", process -> processResources(process, unit))
         push!(model.env_processes, creatingProcess)
 
+        println("Processes started for $(unit.inputLocation.name).")
+
        
         #=
         for shipping in shippingList
@@ -358,7 +371,7 @@ componentList = [Component("Wood", a_input), Component("Metal", b_input), Compon
 
 # We consider that every company start with no available output and no available resources to start
 # manufacturing their products.
-company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 50), 6.0, 350)
+company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 150), 6.0, 350)
 company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[1] => 50), 10.0, 1000)
 company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 100, componentList[2] => 50), 2.5, 500)
 
