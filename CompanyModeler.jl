@@ -61,6 +61,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     componentList :: Array{Component})
     
     # Linking both the input and output locations for every manufacturing unit
+    println("#################  SETUP: Manufacturing units linking process  #################\n")
     for unit in manufacturingUnits
         link(unit.inputLocation, unit.outputLocation)
         println("$(unit.inputLocation.name) and $(unit.outputLocation.name) linked successfully.")
@@ -75,6 +76,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             println("$(shipping.supplier.outputLocation.name) and $(unit.inputLocation.name) linked successfully.")
         end
     end
+
+    println("")
 
     # This process of manufacturing will run forever in the background as long as the simulation is running.
     # If there is not enough materials to manufacture, the process would be stopped for as long as the 
@@ -92,7 +95,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
                                         inputsNeededPairs[1][2])))
                     println("unit(1 input) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)\n")
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)" *
+                            " to produce outputs.\n")
 
                 elseif length(inputsNeededPairs) == 2
                     success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
@@ -100,8 +104,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                                         (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
                                         inputsNeededPairs[2][2])))
                     println("unit(2 inputs) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) / 
-                            have been claimed from $(unit.inputLocation.name)\n")
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " *
+                            "have been claimed from $(unit.inputLocation.name) to produce outputs.\n")
 
                 elseif length(inputsNeededPairs) == 3
                     success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
@@ -111,9 +115,12 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
                                                         inputsNeededPairs[3][2])))
                     println("unit(2 inputs) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) / 
-                            and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name)\n")
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " * 
+                            "and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name) " *
+                            "to produce output.\n")
                 end
+
+
             catch
                 #println("Error occured") ## error....
             end
@@ -145,8 +152,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     try
                         add(process, unit.outputLocation, output)
                         release(process, unit.outputLocation, output)
-                    catch
-                        println("ok")
+                    catch 
+                        println("ok ")
                     end
                 end
 
@@ -207,6 +214,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     # To start all the processes for each manufacturing unit.
     model = Model()
 
+    println("\n#################  SETUP: Initial resource allocation  #################\n")
+
     for unit in manufacturingUnits
         # At this starting stage, the manufacturing unit does not have any outputs yet. So they would
         # have to use the initial resources that they have to start producing outputs. We begin the 
@@ -240,12 +249,11 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         println("Shipping process started for $(shipping.supplier.outputLocation.name).")
     end
 
-    println("\n#################  SUPPLY CHAIN SIMULATION STARTS  ###################\n")
+    println("\n#################  SUPPLY CHAIN SIMULATION STARTS  #################\n")
 
     return model
 
 end
-
 
 # Initialising the locations for outputs and inputs of all the units.
 a_output = Location("A_output")
