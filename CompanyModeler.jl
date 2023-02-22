@@ -156,7 +156,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
                 count = 1
                 for output in outputs
-                    try
+                    
                         # error here!
                         add(process, unit.outputLocation, output)
                         #release(process, unit.outputLocation, output)
@@ -168,9 +168,9 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
                         count += 1
 
-                    catch 
+                     
                         ###println("error ")
-                    end
+                    
                 end
 
                 
@@ -202,7 +202,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                 # the supplier is enough to be shipped to the other connected units.
                 try
                     success, claimed = @claim(process, (shipping.supplier.outputLocation, 
-                                        SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name, 
+                                        SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
                                         shipping.batchSize)))
                     println("success status: ", success)
                     println("$(shipping.batchSize) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to \
@@ -319,8 +319,8 @@ company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 100, co
 
 # Shipping time is different for each company but shipping size is always the same for each 
 # manufacturer.
-shipping1 = Shipping(company1, Dict(company2 => 5.5, company3 => 10.0), 500, component_a)
-shipping2 = Shipping(company2, Dict(company3 => 7.0), 1200, component_b)
+shipping1 = Shipping(company1, Dict(company2 => 5.5hours, company3 => 10.0hours), 500, component_a)
+shipping2 = Shipping(company2, Dict(company3 => 7.0hours), 1200, component_b)
 
 companyList = [company1, company2, company3]
 shippingList = [shipping1, shipping2]
@@ -329,4 +329,9 @@ model = createModel(companyList, shippingList, componentList)
 simulation = Simulation(model)
 SysModels.start(simulation)
 # 5000 hours is approximately 208.33 days.
-SysModels.run(simulation, 2500hours)
+SysModels.run(simulation, 200hours)
+
+# ISSUES:
+## DELAYS IN Shipping / PROBLEMS IN MANFACTURING
+## STORAGE SIZE (IF STORAGE SIZE EXCEEDED - MIGHT NEED TO HOLD)
+## INPUT = STORAGE LOCATION
