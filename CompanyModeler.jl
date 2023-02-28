@@ -1,15 +1,12 @@
 using SysModels
 
-# Production time will be in weeks, so needs to be converted to hours using this variable.
-const hoursInAWeek = 24hours * 7
-
 # Each manufacturing unit will be producing different components which will be supplied to other companies.
 # They will also need different components from other units to produce their output.
 mutable struct Component <: Resource
     # Name of the component
     name :: String
 
-    # We specify the manufacturing using the name attribute of the location class.
+    # Specifying the location where a component will be manufactured
     inputLocation :: Location 
 end
 
@@ -20,16 +17,16 @@ mutable struct ManufacturingUnit
     inputLocation :: Location
     outputLocation :: Location
 
-    # Every unit will need inputs from other companies to manufacture new outputs. 
+    # Every unit will need inputs from other companies to manufacture new outputs and 
+    # this is captured in this dictionary.
     inputsNeeded :: Dict{Component, Int}
     
-    # Production time here will be defined in weeks. Every time one unit of production
-    # time is completed, the number of components produced will be as defined by the 
-    # productionSize attribute below.
+    # Production time is the time taken for a particular unit to manufacture a stock
+    # determined by the production size variable.
     productionTime :: Float64
 
-    # Production size is the number of resources produced each time one production time is
-    # complete and the number will keep on accumulating if none of the resources is being
+    # Production size is the number of resources produced every one unit of production time 
+    # and the available resources will keep on accumulating if none of the resources is being
     # used for shipping or product manufacturing.
     productionSize :: Int
 
@@ -40,7 +37,7 @@ mutable struct ManufacturingUnit
 end
 
 mutable struct Shipping
-    supplier :: ManufacturingUnit
+    supplier :: ManufacturingUnit 
 
     # One manufacturing unit may have multiple units connected to it (one or more). Hence, a 
     # dictionary is used to keep track of all the shipping that one unit has to perform. The
@@ -49,22 +46,20 @@ mutable struct Shipping
 
     # The number of components that has to be produced before any shipping from the 
     # company can start. The batch size for every supplying manufacturer is the same 
-    # regardless of where they will be senfing their components to.
+    # regardless of where they will be sending their components to.
     batchSize :: Int
 
     componentShipped :: Component
 
 end
 
-# different resources for diff units. eg: produce keyboards, screens, motherboard
-# add = after running model
-# distrib = before running model
-##############################
+########################################  CREATE MODEL FUNCTION  ########################################
 
 function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingList :: Array{Shipping},
     componentList :: Array{Component})
     
-    # Linking both the input and output locations for every manufacturing unit
+    # Linking both the input and output locations for every manufacturing unit. This is to ensure that
+    # a manufacturing unit can transport processed goods within itself.
     println("#################  SETUP: Manufacturing units linking process  #################\n")
     for unit in manufacturingUnits
         link(unit.inputLocation, unit.outputLocation)
@@ -88,13 +83,18 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     # shipping of the resources will take.
     function processResources(process :: Process, unit :: ManufacturingUnit)
         while true
-            # Needed here is a pair{Component, num_of_components_needed}
+            # Needed here is a pair{Component, num_of_components_needed}. This pair contains information 
+            # about the inputs needed for each manufacturing unit and how much of those inputs are needed
+            # to manufacture the unit's output.
             inputsNeededPairs = unit.inputsNeeded |> collect
             success = false
             claimed = 0
 
             try
-                # Lengths of the inputs needed - has to be manually coded.
+                # The code can only handles manufacturing units with up to 4 inputs needed because this 
+                # portion of the code has to hard-coded. What is done here is basically the code is checking
+                # if a unit's input unit (or its storage) has got enough resources to manufacture its outputs.
+                # If yes, the needed components will be claimed and used for the manufacturing process.
                 if length(inputsNeededPairs) == 1
                     success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
                                         inputsNeededPairs[1][2])))
@@ -118,29 +118,46 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                                                         inputsNeededPairs[2][2])) &&
                                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
                                                         inputsNeededPairs[3][2])))
-                    println("unit(2 inputs) -> ", unit.inputLocation.name)
+                    println("unit(3 inputs) -> ", unit.inputLocation.name)
                     println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " * 
                             "and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name) " *
                             "to $(unit.outputLocation.name).\n")
-                end
 
+                elseif length(inputsNeededPairs) == 4
+                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
+                                                        inputsNeededPairs[1][2])) && 
+                                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
+                                                        inputsNeededPairs[2][2])) &&
+                                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
+                                                        inputsNeededPairs[3][2])) &&
+                                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[4][1].name, 
+                                                        inputsNeededPairs[4][2])))
+                    println("unit(4 inputs) -> ", unit.inputLocation.name)
+                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name), " * 
+                            "$(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name), and $(inputsNeededPairs[4][2]) units of $(inputsNeededPairs[4][1].name) " *
+                            "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
+
+                end
+            
 
             catch
-                #println("Error occured") ## error....
+                # An error is thrown if a manufacturing unit needs more than 4 inputs.
+                println("The unit has too many input dependencies. This simulation only supports up to 4 inputs for a unit.") 
             end
             
             if (success)
-                #println("CLAIM STATUS: ", success)
+                # Converting the claimed components into a list before removing them. The reason why
+                # the components are removed is to show that the components have been used up to 
+                # manufacture the outputs for the unit.
                 production_inputs = flatten(claimed)
                 remove(process, production_inputs, unit.inputLocation)
-                #release(process, unit.inputLocation, production_inputs)
 
-                ## Next, you want to create the output resources.
                 outputs = Component[]
                 component_name = nothing
 
                 # Finding from the components list, which component is actually produced by the current
-                # manufacturing unit.
+                # manufacturing unit. Then, the finished output components will be initialised and added 
+                # to the outputs list.
                 for component in componentList
                     if component.inputLocation == unit.inputLocation
                         component_name = component.name
@@ -156,29 +173,23 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
                 count = 1
                 for output in outputs
+                    # After the components have been added to the outputs list above, each 
+                    # components in the outputs list will be added to the unit's output location.
+                    # The completed components will be available for shipping to other units.
+                    add(process, unit.outputLocation, output)
                     
-                        # error here!
-                        add(process, unit.outputLocation, output)
-                        #release(process, unit.outputLocation, output)
-                        
-                        if count == length(outputs)
-                            println("$(length(outputs)) units of $(component_name) have been added to $(unit.outputLocation.name).")
-                            println("")
-                        end
-
-                        count += 1
-
-                     
-                        ###println("error ")
+                    if count == length(outputs)
+                        println("$(length(outputs)) units of $(component_name) have been added to $(unit.outputLocation.name).")
+                        println("")
+                    end
+                    count += 1
                     
                 end
-
-                
             end
         end
     end
 
-    # Shipping process method. Continuous process just like creating outputs.
+    # Shipping process function.
     function moveResources(process :: Process, shipping :: Shipping)
 
         # NOTE: Shipping might involve more than one receiving manufacturing unit.
@@ -187,44 +198,38 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         receivingUnits = keys(shipping.receivers)
 
         # The shipping process will continue for as long as the simulation is going on provided that
-        # the manufacturer has enough outputs to be shipped ie availableOutput > shippingSize.
+        # the manufacturer has enough outputs to be shipped i.e. availableOutput > shippingSize.
         while true
             for receiver in receivingUnits
                 success = false
                 claimed = 0
 
                 # We need to firstly check whether the output location of the sender has got enough 
-                # outputs to be sent to the connected units. 
-                ###println("sender output: ", shipping.supplier.outputLocation.name)
-                ###println("receiver input: ", receiver.inputLocation.name, " => ", shipping.batchSize, "\n")
+                # outputs to be sent to the connected units. The "success" variable checks for whether 
+                # the current resources in the output location of the supplier is enough to be shipped 
+                # to the other connected units.
+                success, claimed = @claim(process, (shipping.supplier.outputLocation, 
+                                    SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
+                                    shipping.batchSize)))
+                println("success status: ", success)
+                println("$(shipping.batchSize) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to " *
+                        "$(receiver.inputLocation.name).")
+                
+                if (success)
+                    # Convert a tree into a list for easy list comprehension.
+                    claimed_outputs = flatten(claimed)
 
-                # The last variable checks for whether the current resources in the output location of
-                # the supplier is enough to be shipped to the other connected units.
-                try
-                    success, claimed = @claim(process, (shipping.supplier.outputLocation, 
-                                        SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
-                                        shipping.batchSize)))
-                    println("success status: ", success)
-                    println("$(shipping.batchSize) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to \
-                             $(receiver.inputLocation.name).")
-                    
-                    if (success)
-                        # Convert a tree into a list for easy list comprehension.
-                        claimed_outputs = flatten(claimed)
+                    # Wait for some time before all the resources can be shipped completely to the receiving unit.
+                    # After the holding period is finished, we move all the claimed resources from the manufacturer
+                    # to the input location of the receiving unit. Then, the process releases the moved resources
+                    # so that these resources can then be used by other processes.
+                    hold(process, shipping.receivers[receiver])
+                    move(process, claimed_outputs, shipping.supplier.outputLocation, receiver.inputLocation)
+                    release(process, receiver.inputLocation, claimed_outputs)
 
-                        # Wait for some time before all the resources can be shipped completely to the receiving unit.
-                        hold(process, shipping.receivers[receiver])
-                        move(process, claimed_outputs, shipping.supplier.outputLocation, receiver.inputLocation)
-                        release(process, receiver.inputLocation, claimed_outputs)
+                    println("$(shipping.batchSize) units of $(shipping.componentShipped.name) have been shipped from " * 
+                            "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).\n")
 
-                        println("$(shipping.batchSize) units of $(shipping.componentShipped.name) have been shipped from " * 
-                                "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).\n")
-
-                        
-
-                    end
-                catch
-                    #println("error occurred")
                 end
             end
         end
@@ -256,6 +261,9 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     end
                 end
 
+            # If the manufacturing unit is at the top of the supply chain, it is assumed that 
+            # the unit has a lot of resources to begin with. This is to ensure that the supply
+            # chain simulation can be started.
             elseif component.inputLocation == unit.inputLocation && unit.firstUnit
                 componentsToBeCreated = 100000
                 for count in 1 : componentsToBeCreated
