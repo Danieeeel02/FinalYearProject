@@ -329,7 +329,7 @@ model = createModel(companyList, shippingList, componentList)
 simulation = Simulation(model)
 SysModels.start(simulation)
 # 5000 hours is approximately 208.33 days.
-SysModels.run(simulation, 200hours)
+SysModels.run(simulation, 100hours)
 
 # ISSUES:
 ## DELAYS IN Shipping / PROBLEMS IN MANFACTURING
