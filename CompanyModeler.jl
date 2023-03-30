@@ -109,60 +109,65 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             claimed = 0
 
             try
-                # The code can only handles manufacturing units with up to 4 inputs needed because this 
-                # portion of the code has to hard-coded. What is done here is basically the code is checking
-                # if a unit's input unit (or its storage) has got enough resources to manufacture its outputs.
-                # If yes, the needed components will be claimed and used for the manufacturing process.
-                if length(inputsNeededPairs) == 1
-                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
-                                        inputsNeededPairs[1][2])))
-                    println("unit(1 input) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)" *
-                            " to $(unit.outputLocation.name).\n")
+                # Checking if there is enough storage to store the newly manufactured goods. Else, the production 
+                # of new components will be halted.
+                if (length(unit.outputLocation.resources) + unit.productionSize <= unit.outputStorageSize)    
 
-                elseif length(inputsNeededPairs) == 2
-                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
-                                        inputsNeededPairs[1][2])) && 
-                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
-                                        inputsNeededPairs[2][2])))
-                    println("unit(2 inputs) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " *
-                            "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
+                    # The code can only handles manufacturing units with up to 4 inputs needed because this 
+                    # portion of the code has to hard-coded. What is done here is basically the code is checking
+                    # if a unit's input unit (or its storage) has got enough resources to manufacture its outputs.
+                    # If yes, the needed components will be claimed and used for the manufacturing process.
+                    if length(inputsNeededPairs) == 1
+                        success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
+                                            inputsNeededPairs[1][2])))
+                        println("unit(1 input) -> ", unit.inputLocation.name)
+                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)" *
+                                " to $(unit.outputLocation.name).\n")
 
-                elseif length(inputsNeededPairs) == 3
-                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
-                                                        inputsNeededPairs[1][2])) && 
-                                                       (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
-                                                        inputsNeededPairs[2][2])) &&
-                                                       (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
-                                                        inputsNeededPairs[3][2])))
-                    println("unit(3 inputs) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " * 
-                            "and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name) " *
-                            "to $(unit.outputLocation.name).\n")
+                    elseif length(inputsNeededPairs) == 2
+                        success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
+                                            inputsNeededPairs[1][2])) && 
+                                            (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
+                                            inputsNeededPairs[2][2])))
+                        println("unit(2 inputs) -> ", unit.inputLocation.name)
+                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " *
+                                "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
 
-                elseif length(inputsNeededPairs) == 4
-                    success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
-                                                        inputsNeededPairs[1][2])) && 
+                    elseif length(inputsNeededPairs) == 3
+                        success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
+                                                            inputsNeededPairs[1][2])) && 
                                                         (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
-                                                        inputsNeededPairs[2][2])) &&
+                                                            inputsNeededPairs[2][2])) &&
                                                         (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
-                                                        inputsNeededPairs[3][2])) &&
-                                                        (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[4][1].name, 
-                                                        inputsNeededPairs[4][2])))
-                    println("unit(4 inputs) -> ", unit.inputLocation.name)
-                    println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name), " * 
-                            "$(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name), and $(inputsNeededPairs[4][2]) units of $(inputsNeededPairs[4][1].name) " *
-                            "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
+                                                            inputsNeededPairs[3][2])))
+                        println("unit(3 inputs) -> ", unit.inputLocation.name)
+                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " * 
+                                "and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name) " *
+                                "to $(unit.outputLocation.name).\n")
 
+                    elseif length(inputsNeededPairs) == 4
+                        success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
+                                                            inputsNeededPairs[1][2])) && 
+                                                            (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
+                                                            inputsNeededPairs[2][2])) &&
+                                                            (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
+                                                            inputsNeededPairs[3][2])) &&
+                                                            (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[4][1].name, 
+                                                            inputsNeededPairs[4][2])))
+                        println("unit(4 inputs) -> ", unit.inputLocation.name)
+                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name), " * 
+                                "$(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name), and $(inputsNeededPairs[4][2]) units of $(inputsNeededPairs[4][1].name) " *
+                                "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
+
+                    end
+                
                 end
-            
 
             catch
                 # An error is thrown if a manufacturing unit needs more than 4 inputs.
                 println("The unit has too many input dependencies. This simulation only supports up to 4 inputs for a unit.") 
             end
-            
+
             if (success)
                 # Converting the claimed components into a list before removing them. The reason why
                 # the components are removed is to show that the components have been used up to 
@@ -203,6 +208,11 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     count += 1
                     
                 end
+
+                
+                println("Number of components in $(unit.outputLocation.name): ", length(unit.outputLocation.resources))
+
+
             end
         end
     end
@@ -222,17 +232,24 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                 success = false
                 claimed = 0
 
-                # We need to firstly check whether the output location of the sender has got enough 
-                # outputs to be sent to the connected units. The "success" variable checks for whether 
-                # the current resources in the output location of the supplier is enough to be shipped 
-                # to the other connected units.
-                success, claimed = @claim(process, (shipping.supplier.outputLocation, 
-                                    SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
-                                    shipping.batchSize)))
-                println("success status: ", success)
-                println("$(shipping.batchSize) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to " *
-                        "$(receiver.inputLocation.name).")
-                
+                if (length(receiver.inputLocation.resources) + shipping.batchSize <= receiver.inputStorageSize)
+
+                    # Some components will be defective after being shipped. The value of defect components
+                    # will be ceil-ed to only deal with integers.
+                    components_shipped = ceil(Int, shipping.batchSize * (1.0 - shipping.supplier.defectRate))
+
+                    # We need to firstly check whether the output location of the sender has got enough 
+                    # outputs to be sent to the connected units. The "success" variable checks for whether 
+                    # the current resources in the output location of the supplier is enough to be shipped 
+                    # to the other connected units.
+                    success, claimed = @claim(process, (shipping.supplier.outputLocation, 
+                                        SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
+                                        components_shipped)))
+                    println("success status: ", success)
+                    println("$(components_shipped) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to " *
+                            "$(receiver.inputLocation.name).")
+                end
+
                 if (success)
                     # Convert a tree into a list for easy list comprehension.
                     claimed_outputs = flatten(claimed)
@@ -248,6 +265,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     println("$(shipping.batchSize) units of $(shipping.componentShipped.name) have been shipped from " * 
                             "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).\n")
 
+
+                    println("Number of components in $(receiver.inputLocation.name): ", length((receiver.inputLocation.resources)))
                 end
             end
         end
@@ -283,7 +302,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
             # the unit has a lot of resources to begin with. This is to ensure that the supply
             # chain simulation can be started.
             elseif component.inputLocation == unit.inputLocation && unit.firstUnit
-                componentsToBeCreated = 100000
+                componentsToBeCreated = 20000
                 for count in 1 : componentsToBeCreated
                     # distrib function is used before a process is being run to allocate resources to
                     # a location.
@@ -339,15 +358,18 @@ componentList = [component_a, component_b, component_c]
 
 # We consider that every company start with no available output and no available resources to start
 # manufacturing their products.
-company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 150), 6.0, 350, rand(), rand(), 10000, 15000, true)
-company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[1] => 50), 10.0, 1000, rand(), rand(), 19000, 20000, false)
-company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 100, componentList[2] => 50), 
-                            2.5, 500, rand(), rand(), 15000, 30000, false)
+company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 550), 6.0hours, 350, rand(), rand(), 20000, 15000, true)
+company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[1] => 450), 10.0hours, 1000, rand(), rand(), 19000, 20000, false)
+
+# Huge output and output storage sizes for units in the final position of the supply chain because they indicate
+# the finished products ready for shipping to customers.
+company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 500, componentList[2] => 1000), 
+                            2.5hours, 500, rand(), rand(), 50000, 5000000, false)
 
 # Shipping time is different for each company but shipping size is always the same for each 
 # manufacturer.
-shipping1 = Shipping(company1, Dict(company2 => 5.5hours, company3 => 10.0hours), 500, component_a)
-shipping2 = Shipping(company2, Dict(company3 => 7.0hours), 1200, component_b)
+shipping1 = Shipping(company1, Dict(company2 => 2.5hours, company3 => 1.7hours), 2500, component_a)
+shipping2 = Shipping(company2, Dict(company3 => 3.0hours), 1800, component_b)
 
 companyList = [company1, company2, company3]
 shippingList = [shipping1, shipping2]
@@ -355,11 +377,11 @@ shippingList = [shipping1, shipping2]
 model = createModel(companyList, shippingList, componentList)
 simulation = Simulation(model)
 SysModels.start(simulation)
-# 5000 hours is approximately 208.33 days.
-SysModels.run(simulation, 100hours)
+# Simulation time can be adjusted as desired.
+SysModels.run(simulation, 10000hours)
 
 # ISSUES:
 ## DELAYS IN Shipping / PROBLEMS IN MANFACTURING 
-## DEFECT RATE
-## STORAGE SIZE (IF STORAGE SIZE EXCEEDED - MIGHT NEED TO HOLD)
+## DEFECT RATE (DONE!!!!!)
+## STORAGE SIZE (IF STORAGE SIZE EXCEEDED - MIGHT NEED TO HOLD) (DONEEE!!!!!)
 ## INPUT = STORAGE LOCATION
