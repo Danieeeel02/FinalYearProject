@@ -1,0 +1,4 @@
+Input Location, Output Location, Inputs Needed, Production Time, Production Size, Delay Rate, Defect Rate, Input Storage Size, Output Storage Size, First Unit?
+a_input, a_output, Dict(componentList[1] => 150), 6.0, 350, rand(), rand(), 10000, 15000, true
+b_input, b_output, Dict(componentList[1] => 50), 10.0, 1000, rand(), rand(), 19000, 20000, false
+c_input, c_output, Dict(componentList[1] => 100"," componentList[2] => 50), 2.5, 500, rand(), rand(), 15000, 30000, false

@@ -30,6 +30,24 @@ mutable struct ManufacturingUnit
     # used for shipping or product manufacturing.
     productionSize :: Int
 
+    # A random amount of delay rate will be assigned to each manufacturing unit to simulate
+    # the presence of delays between shippings in a supply chain and to study its effects 
+    # to the chain.
+    shippingDelayRate :: Float64
+
+    # A random defect rate will be assigned to each manufacturer to ensure that the simulation
+    # reflects a real-life supply chain. The defect rate determines the percentage of the 
+    # components which will need to be discarded due to them being faulty.
+    defectRate :: Float64
+
+    # The amount of input resources a manufacturing unit can store within its warehouse after 
+    # receiving inputs from other connected companies.
+    inputStorageSize :: Int
+
+    # The amount of manufactured outputs a manufacturing unit can store within its warehouse after 
+    # being processed by the unit itself.
+    outputStorageSize :: Int
+
     # Checking if a unit is on the top of the supply chain because if so, it is assumed that
     # the unit has a lot of resources to begin with so that the supply chain can start.
     firstUnit :: Bool
@@ -321,9 +339,10 @@ componentList = [component_a, component_b, component_c]
 
 # We consider that every company start with no available output and no available resources to start
 # manufacturing their products.
-company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 150), 6.0, 350, true)
-company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[1] => 50), 10.0, 1000, false)
-company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 100, componentList[2] => 50), 2.5, 500, false)
+company1 = ManufacturingUnit(a_input, a_output, Dict(componentList[1] => 150), 6.0, 350, rand(), rand(), 10000, 15000, true)
+company2 = ManufacturingUnit(b_input, b_output, Dict(componentList[1] => 50), 10.0, 1000, rand(), rand(), 19000, 20000, false)
+company3 = ManufacturingUnit(c_input, c_output, Dict(componentList[1] => 100, componentList[2] => 50), 
+                            2.5, 500, rand(), rand(), 15000, 30000, false)
 
 # Shipping time is different for each company but shipping size is always the same for each 
 # manufacturer.
@@ -340,6 +359,7 @@ SysModels.start(simulation)
 SysModels.run(simulation, 100hours)
 
 # ISSUES:
-## DELAYS IN Shipping / PROBLEMS IN MANFACTURING
+## DELAYS IN Shipping / PROBLEMS IN MANFACTURING 
+## DEFECT RATE
 ## STORAGE SIZE (IF STORAGE SIZE EXCEEDED - MIGHT NEED TO HOLD)
 ## INPUT = STORAGE LOCATION
