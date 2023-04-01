@@ -208,11 +208,6 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     count += 1
                     
                 end
-
-                
-                println("Number of components in $(unit.outputLocation.name): ", length(unit.outputLocation.resources))
-
-
             end
         end
     end
@@ -226,12 +221,14 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         receivingUnits = keys(shipping.receivers)
 
         # The shipping process will continue for as long as the simulation is going on provided that
-        # the manufacturer has enough outputs to be shipped i.e. availableOutput > shippingSize.
+        # the manufacturer has enough outputs to be shipped i.e. availableOutput >= shippingSize.
         while true
             for receiver in receivingUnits
+                components_shipped = 0
                 success = false
                 claimed = 0
 
+                # Checking if storage is available to store shipped goods. If not, shipping will not be done.
                 if (length(receiver.inputLocation.resources) + shipping.batchSize <= receiver.inputStorageSize)
 
                     # Some components will be defective after being shipped. The value of defect components
@@ -245,12 +242,24 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     success, claimed = @claim(process, (shipping.supplier.outputLocation, 
                                         SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
                                         components_shipped)))
-                    println("success status: ", success)
                     println("$(components_shipped) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to " *
                             "$(receiver.inputLocation.name).")
+                            
                 end
 
                 if (success)
+
+                    # Simulating random delays within the shipping of resources using random numbers. 
+                    random_number = rand()
+                    if (random_number > shipping.supplier.shippingDelayRate)
+                        # Delayed time will be in seconds (a float) and can be converted to hours.
+                        shippingTimeDelayed = shipping.receivers[receiver] * random_number
+                        hold(process, shippingTimeDelayed)
+                        println("The shipping process from $(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name) has been delayed by " *  
+                        "$(shippingTimeDelayed/(60*60)) hours.")
+                        
+                    end
+
                     # Convert a tree into a list for easy list comprehension.
                     claimed_outputs = flatten(claimed)
 
@@ -262,11 +271,9 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     move(process, claimed_outputs, shipping.supplier.outputLocation, receiver.inputLocation)
                     release(process, receiver.inputLocation, claimed_outputs)
 
-                    println("$(shipping.batchSize) units of $(shipping.componentShipped.name) have been shipped from " * 
+                    println("$(components_shipped) units of $(shipping.componentShipped.name) have been shipped from " * 
                             "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).\n")
 
-
-                    println("Number of components in $(receiver.inputLocation.name): ", length((receiver.inputLocation.resources)))
                 end
             end
         end
@@ -315,7 +322,6 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     end
                 end
             end
-
         end
 
         # The continuous process of manufacturing is started for each unit.
@@ -381,7 +387,7 @@ SysModels.start(simulation)
 SysModels.run(simulation, 10000hours)
 
 # ISSUES:
-## DELAYS IN Shipping / PROBLEMS IN MANFACTURING 
+## DELAYS IN Shipping / PROBLEMS IN MANFACTURING (DONEEE!!!)
 ## DEFECT RATE (DONE!!!!!)
 ## STORAGE SIZE (IF STORAGE SIZE EXCEEDED - MIGHT NEED TO HOLD) (DONEEE!!!!!)
 ## INPUT = STORAGE LOCATION

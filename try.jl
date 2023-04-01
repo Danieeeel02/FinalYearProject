@@ -1,9 +1,15 @@
 using Random
 using Distributions
 
-#print(rand(MersenneTwister(abs(rand(Int))), Float64))
+# Define the mean and standard deviation of the normal distribution
+μ = 0
+σ = 1
 
-d= Normal(0.5, 1)
+# Create a normal distribution object
+dist = Normal(μ, σ)
 
-# prints a random number between 0 and 1
-print(rand())
+# Generate 10 random positive numbers from the normal distribution
+println(abs.(randn(10)))
+
+
+println(rand(1:100))
