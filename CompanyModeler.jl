@@ -120,8 +120,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     if length(inputsNeededPairs) == 1
                         success, claimed = @claim(process, (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[1][1].name, 
                                             inputsNeededPairs[1][2])))
-                        println("unit(1 input) -> ", unit.inputLocation.name)
-                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)" *
+                        println("[PRE-PROCESSING RESOURCE CLAIM] $(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) have been claimed from $(unit.inputLocation.name)" *
                                 " to $(unit.outputLocation.name).\n")
 
                     elseif length(inputsNeededPairs) == 2
@@ -129,8 +128,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                                             inputsNeededPairs[1][2])) && 
                                             (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[2][1].name, 
                                             inputsNeededPairs[2][2])))
-                        println("unit(2 inputs) -> ", unit.inputLocation.name)
-                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " *
+                        println("[PRE-PROCESSING RESOURCE CLAIM] $(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name) and $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " *
                                 "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
 
                     elseif length(inputsNeededPairs) == 3
@@ -140,8 +138,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                                                             inputsNeededPairs[2][2])) &&
                                                         (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[3][1].name, 
                                                             inputsNeededPairs[3][2])))
-                        println("unit(3 inputs) -> ", unit.inputLocation.name)
-                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " * 
+                        println("[PRE-PROCESSING RESOURCE CLAIM] $(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name) " * 
                                 "and $(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name) have been claimed from $(unit.inputLocation.name) " *
                                 "to $(unit.outputLocation.name).\n")
 
@@ -154,8 +151,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                                                             inputsNeededPairs[3][2])) &&
                                                             (unit.inputLocation, SysModels.find(r -> typeof(r) == Component && r.name == inputsNeededPairs[4][1].name, 
                                                             inputsNeededPairs[4][2])))
-                        println("unit(4 inputs) -> ", unit.inputLocation.name)
-                        println("$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name), " * 
+                        println("[PRE-PROCESSING RESOURCE CLAIM]$(inputsNeededPairs[1][2]) units of $(inputsNeededPairs[1][1].name), $(inputsNeededPairs[2][2]) units of $(inputsNeededPairs[2][1].name), " * 
                                 "$(inputsNeededPairs[3][2]) units of $(inputsNeededPairs[3][1].name), and $(inputsNeededPairs[4][2]) units of $(inputsNeededPairs[4][1].name) " *
                                 "have been claimed from $(unit.inputLocation.name) to $(unit.outputLocation.name).\n")
 
@@ -172,7 +168,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                 # Converting the claimed components into a list before removing them. The reason why
                 # the components are removed is to show that the components have been used up to 
                 # manufacture the outputs for the unit.
-                production_inputs = flatten(claimed)
+                production_inputs = SysModels.flatten(claimed)
                 remove(process, production_inputs, unit.inputLocation)
 
                 outputs = Component[]
@@ -202,7 +198,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     add(process, unit.outputLocation, output)
                     
                     if count == length(outputs)
-                        println("$(length(outputs)) units of $(component_name) have been added to $(unit.outputLocation.name).")
+                        println("[POST-PROCESSING] $(length(outputs)) units of $(component_name) have been added to $(unit.outputLocation.name).")
                         println("")
                     end
                     count += 1
@@ -242,9 +238,9 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     success, claimed = @claim(process, (shipping.supplier.outputLocation, 
                                         SysModels.find(r -> typeof(r) == Component && r.name == shipping.componentShipped.name,
                                         components_shipped)))
-                    println("$(components_shipped) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to " *
+                    println("[SHIPPING CLAIM] $(components_shipped) units of $(shipping.componentShipped.name) claimed from $(shipping.supplier.outputLocation.name) to " *
                             "$(receiver.inputLocation.name).")
-                            
+
                 end
 
                 if (success)
@@ -255,13 +251,13 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                         # Delayed time will be in seconds (a float) and can be converted to hours.
                         shippingTimeDelayed = shipping.receivers[receiver] * random_number
                         hold(process, shippingTimeDelayed)
-                        println("The shipping process from $(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name) has been delayed by " *  
+                        println("[SHIPPING DELAY] The shipping process from $(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name) has been delayed by " *  
                         "$(shippingTimeDelayed/(60*60)) hours.")
                         
                     end
 
                     # Convert a tree into a list for easy list comprehension.
-                    claimed_outputs = flatten(claimed)
+                    claimed_outputs = SysModels.flatten(claimed)
 
                     # Wait for some time before all the resources can be shipped completely to the receiving unit.
                     # After the holding period is finished, we move all the claimed resources from the manufacturer
@@ -271,8 +267,9 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     move(process, claimed_outputs, shipping.supplier.outputLocation, receiver.inputLocation)
                     release(process, receiver.inputLocation, claimed_outputs)
 
-                    println("$(components_shipped) units of $(shipping.componentShipped.name) have been shipped from " * 
-                            "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).\n")
+                    println("[SHIPPING] $(components_shipped) units of $(shipping.componentShipped.name) have been shipped from " * 
+                            "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).")
+                    println("")
 
                 end
             end
@@ -345,7 +342,10 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
 
 end
 
-# Initialising the locations for outputs and inputs of all the units.
+
+#=
+
+#Initialising the locations for outputs and inputs of all the units.
 a_output = Location("A_output")
 b_output = Location("B_output")
 c_output = Location("C_output")
@@ -390,4 +390,9 @@ SysModels.run(simulation, 10000hours)
 ## DELAYS IN Shipping / PROBLEMS IN MANFACTURING (DONEEE!!!)
 ## DEFECT RATE (DONE!!!!!)
 ## STORAGE SIZE (IF STORAGE SIZE EXCEEDED - MIGHT NEED TO HOLD) (DONEEE!!!!!)
+## 
+
+=#
+
+## *****CHOOSING TWO OR MORE SUPPLIERS
 ## INPUT = STORAGE LOCATION

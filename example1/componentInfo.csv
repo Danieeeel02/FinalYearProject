@@ -1,0 +1,4 @@
+Component, Name, Input Location
+component_a, "Wood", a_input
+component_b, "Metal", b_input
+component_c, "Plastic", c_input
