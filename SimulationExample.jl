@@ -41,7 +41,7 @@ model = createModel(companyList, shippingList, componentList)
 simulation = Simulation(model)
 SysModels.start(simulation)
 # Simulation time can be adjusted as desired.
-SysModels.run(simulation, 10000hours)
+SysModels.run(simulation, 100000hours)
 
 
 
