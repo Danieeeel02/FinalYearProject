@@ -78,7 +78,7 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     
     # Linking both the input and output locations for every manufacturing unit. This is to ensure that
     # a manufacturing unit can transport processed goods within itself.
-    println("#################  SETUP: Manufacturing units linking process  #################\n")
+    println("\n\n#################  SETUP: Manufacturing units linking process  #################\n")
     for unit in manufacturingUnits
         link(unit.inputLocation, unit.outputLocation)
         println("$(unit.inputLocation.name) and $(unit.outputLocation.name) linked successfully.")
@@ -100,7 +100,16 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     # If there is not enough materials to manufacture, the process would be stopped for as long as the 
     # shipping of the resources will take.
     function processResources(process :: Process, unit :: ManufacturingUnit)
+
+        model = get_model(process)
+
         while true
+
+            # Collecting data on the frequency of shippings in the presence of delays
+            if (unit.outputLocation.name == "C_output")
+                model.data["total_final_output"] = length(unit.outputLocation.resources)
+            end
+
             # Needed here is a pair{Component, num_of_components_needed}. This pair contains information 
             # about the inputs needed for each manufacturing unit and how much of those inputs are needed
             # to manufacture the unit's output.
@@ -211,6 +220,8 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
     # Shipping process function.
     function moveResources(process :: Process, shipping :: Shipping)
 
+        model = get_model(process)
+
         # NOTE: Shipping might involve more than one receiving manufacturing unit.
         # The sender here is the origin of the shipping for the resources. Receivers are the unit(s)
         # which will need input resources from the sender.
@@ -219,10 +230,16 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
         # The shipping process will continue for as long as the simulation is going on provided that
         # the manufacturer has enough outputs to be shipped i.e. availableOutput >= shippingSize.
         while true
+
             for receiver in receivingUnits
                 components_shipped = 0
                 success = false
                 claimed = 0
+
+                # Collecting data on the frequency of shippings in the presence of delays
+                if (receiver.outputLocation.name == "C_output")
+                    model.data["total_final_output"] = length(receiver.outputLocation.resources)
+                end
 
                 # Checking if storage is available to store shipped goods. If not, shipping will not be done.
                 if (length(receiver.inputLocation.resources) + shipping.batchSize <= receiver.inputStorageSize)
@@ -256,6 +273,10 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                         hold(process, shippingTimeDelayed)
                         println("[SHIPPING DELAY] The shipping process from $(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name) has been delayed by " *  
                         "$(shippingTimeDelayed/(60*60)) hours.")
+
+                        # Collecting testing data on the frequency of shipping delays and their durations
+                        model.data["number_of_shipping_delays"] += 1
+                        model.data["length_of_delays"] += shippingTimeDelayed
                         
                     end
 
@@ -274,6 +295,11 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                             "$(shipping.supplier.outputLocation.name) to $(receiver.inputLocation.name).")
                     println("")
 
+                    # Collecting data on the frequency of shippings with the presence of delays
+                    model.data["number_of_shippings_done"] += 1
+                    model.data["number_of_components_shipped"] += components_shipped
+
+
                     # Removing the faulty components from the supplier's output location so that they will not be shipped 
                     # to any receiving units accidentally. Firstly, the faulty components would need to be claimed before
                     # they can be removed from the output location.
@@ -287,7 +313,10 @@ function createModel(manufacturingUnits :: Array{ManufacturingUnit}, shippingLis
                     faulty_components_list = SysModels.flatten(faulty_claimed_tree)
                     remove(process, faulty_components_list, shipping.supplier.outputLocation)
                     println("[REMOVING DEFECTIVE COMPONENTS] $(faulty_components_quantity) units of defective $(shipping.componentShipped.name) have been removed from " *
-                            "$(shipping.supplier.outputLocation.name).")
+                            "$(shipping.supplier.outputLocation.name).\n")
+
+                    # Collecting data on the faulty component quantity
+                    model.data["number_of_defective_components"] += faulty_components_quantity
 
                 end
             end
