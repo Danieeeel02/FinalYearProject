@@ -2,9 +2,8 @@ include("CompanyModeler.jl")
 using CSV
 using DataFrames
 
-####### NOTE: This is the simulation example based on the datasets contained within the folder "/example1".
+####### NOTE: This is the simulation example based on the datasets contained within the folder "/example".
 #######       Run this file to simulate the supply chain example from the folder.
-
 
 ########################### Extracting data from files ###########################
 
@@ -61,6 +60,7 @@ num_of_simulation_runs = 10
 delay_list = []
 defect_list = []
 delay_lengths_list = []
+delayed_shipping_time_list = []
 shipping_num_list = []
 total_output_list = []
 total_components_shipped_list = []
@@ -74,6 +74,7 @@ for count in 1 : num_of_simulation_runs
     model.data["number_of_shipping_delays"] = 0
     model.data["number_of_defective_components"] = 0
     model.data["length_of_delays"] = 0
+    model.data["total_shipping_time_with_delays"] = 0
     model.data["number_of_shippings_done"] = 0
     model.data["total_final_output"] = 0
     model.data["number_of_components_shipped"] = 0
@@ -86,6 +87,7 @@ for count in 1 : num_of_simulation_runs
     push!(delay_list, model.data["number_of_shipping_delays"])
     push!(defect_list, model.data["number_of_defective_components"])
     push!(delay_lengths_list, model.data["length_of_delays"])
+    push!(delayed_shipping_time_list, model.data["total_shipping_time_with_delays"])
     push!(shipping_num_list, model.data["number_of_shippings_done"])
     push!(total_components_shipped_list, model.data["number_of_components_shipped"])
     push!(total_output_list, model.data["total_final_output"])
@@ -102,14 +104,15 @@ end
 ########################### Testing the programme ###########################
 
 # Extracting and analysing output data
-println(delay_list)
-println(defect_list)
-println(delay_lengths_list)
-println(shipping_num_list)
-println(total_output_list)
-println(total_components_shipped_list)
+println("Delay list: ", delay_list)
+println("Defect list: ", defect_list)
+println("Lengths of delay list: ", delay_lengths_list)
+println("Total shipping times with delay list", delayed_shipping_time_list)
+println("Total shipping done list", shipping_num_list)
+println("Total output list", total_output_list)
+println("Total components shipped list: ", total_components_shipped_list)
 
-# Writing results out to a csv file
+# Writing results out to a csv file in this stated location
 path = "results.csv"
 
 # Storing data in a DataFrame to be added to the csv file later.
@@ -118,6 +121,7 @@ df = DataFrame(
     delay_list = delay_list,
     defect_list = defect_list,
     delay_lengths_list = delay_lengths_list,
+    delayed_shipping_time_list = delayed_shipping_time_list,
     shipping_num_list = shipping_num_list,
     total_output_list = total_output_list,
     total_components_shipped_list = total_components_shipped_list
