@@ -96,6 +96,8 @@ end
 @testset "Testing Component struct" begin
     @test isa(component1, Resource)
     @test isa(component1, Component)
+    @test component1.name == "Transistor"
+    @test component2.inputLocation != location2
     @test !(component1 in location2.resources)
 
 end
