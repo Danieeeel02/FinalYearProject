@@ -113,7 +113,7 @@ println("Total output list", total_output_list)
 println("Total components shipped list: ", total_components_shipped_list)
 
 # Writing results out to a csv file in this stated location
-path = "results3.csv"
+path = "results.csv"
 
 # Storing data in a DataFrame to be added to the csv file later.
 df = DataFrame(
